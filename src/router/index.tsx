@@ -104,7 +104,7 @@ const AppContent: React.FC = () => {
           }
         />
         <Route
-          path="/inspection/execute/:planId"
+          path="/inspection/execute/:deviceId"
           element={
             <ProtectedRoute>
               <InspectionExecute />

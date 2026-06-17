@@ -395,14 +395,25 @@ export const DeviceDetail: React.FC = () => {
                 </button>
               </div>
               <div className="space-y-3">
-                {deviceData.deviceInspections.map((record, index) => {
-                  const plan = record.inspectionPlanId;
-                  const abnormalCount = record.results.filter(
-                    (r) => r.status === 'abnormal'
-                  ).length;
+                {deviceData.deviceInspections.map((record) => {
+                  const recordAny = record as any;
+                  const items = record.results || record.items || [];
+                  const abnormalCount =
+                    record.abnormalCount !== undefined
+                      ? record.abnormalCount
+                      : items.filter((item: any) => item?.status === 'abnormal').length;
+                  const inspectorName =
+                    record.inspectorName || record.executorName || '点检员';
+                  const inspectionType = record.inspectionType || '日常';
+                  const inspectionTime =
+                    record.inspectionTime ||
+                    recordAny.inspectedAt ||
+                    recordAny.createdAt ||
+                    recordAny.startTime ||
+                    '';
                   return (
                     <div
-                      key={record.id}
+                      key={record.id || Math.random()}
                       className="flex items-center p-3 bg-neutral-50 rounded-xl"
                     >
                       <div
@@ -416,13 +427,12 @@ export const DeviceDetail: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-neutral-700 text-sm">
-                          {record.inspectorName} · {record.inspectionType}点检
+                          {inspectorName} · {inspectionType}点检
                         </p>
                         <p className="text-xs text-neutral-500 mt-0.5">
-                          {formatDate(
-                            new Date(record.inspectionTime),
-                            'MM-DD HH:mm'
-                          )}
+                          {inspectionTime
+                            ? formatDate(inspectionTime, 'MM-DD HH:mm')
+                            : '--'}
                         </p>
                       </div>
                       <div className="text-right">

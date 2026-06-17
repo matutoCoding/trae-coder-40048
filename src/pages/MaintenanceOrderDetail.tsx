@@ -15,20 +15,19 @@ import {
   ChevronRight,
   FileText,
   Package,
-  AlertCircle,
   MapPin,
   ArrowRight,
   AlertTriangle,
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { Card, CardContent } from '../components/common/Card';
-import { StatusBadge, ProgressBar } from '../components/common/StatusBadge';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/common/Button';
 import { Input, ImageUpload, Slider } from '../components/common/Form';
 import { Empty, LoadingOverlay } from '../components/common/Empty';
-import { classNames, formatDate, generateId } from '../utils';
-import type { MaintenanceItemResult, SparePartUsage } from '../types';
+import { classNames, formatDate, safeNumber, formatPrice } from '../utils';
+import type { MaintenanceItemResult, SparePartUsage, MaintenanceTask } from '../types';
 
 export const MaintenanceOrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +63,87 @@ export const MaintenanceOrderDetail: React.FC = () => {
     [order]
   );
 
+  const progress = useMemo(() => {
+    if (orderItems.length === 0) return 0;
+    let completedCount = 0;
+    if (itemResults.size > 0) {
+      completedCount = Array.from(itemResults.values()).filter(
+        (v) => v.status !== 'pending'
+      ).length;
+    } else if (order?.results && order.results.length > 0) {
+      completedCount = order.results.filter(
+        (r) => r.status !== 'pending'
+      ).length;
+    } else if (order?.completedItems !== undefined) {
+      completedCount = order.completedItems;
+    } else {
+      completedCount = orderItems.filter(
+        (item: any) => item.status && item.status !== 'pending'
+      ).length;
+    }
+    return (completedCount / orderItems.length) * 100;
+  }, [order, orderItems, itemResults]);
+
+  const completionStats = useMemo(() => {
+    let completed = 0;
+    let skipped = 0;
+    let replaced = 0;
+
+    if (itemResults.size > 0) {
+      const values = Array.from(itemResults.values());
+      completed = values.filter((v) => v.status === 'completed').length;
+      skipped = values.filter((v) => v.status === 'skipped').length;
+      replaced = values.filter((v) => v.status === 'replaced').length;
+    } else if (order?.results && order.results.length > 0) {
+      completed = order.results.filter((r) => r.status === 'completed').length;
+      skipped = order.results.filter((r) => r.status === 'skipped').length;
+      replaced = order.results.filter((r) => r.status === 'replaced').length;
+    } else if (orderItems.length > 0) {
+      completed = orderItems.filter((item: any) => item.status === 'completed').length;
+      skipped = orderItems.filter((item: any) => item.status === 'skipped').length;
+      replaced = orderItems.filter((item: any) => item.status === 'replaced').length;
+    }
+
+    return {
+      completed,
+      skipped,
+      replaced,
+      total: orderItems.length,
+    };
+  }, [itemResults, order, orderItems]);
+
+  const sparePartsCost = useMemo(() => {
+    if (!order) return 0;
+    if (order.spareParts && order.spareParts.length > 0) {
+      return order.spareParts.reduce((sum, item) => {
+        const price = safeNumber(item.unitPrice, 0);
+        const qty = safeNumber(item.quantity, 0);
+        return sum + price * qty;
+      }, 0);
+    }
+    if (order.materials && order.materials.length > 0) {
+      return order.materials.reduce((sum, item) => {
+        const part = spareParts.find((p) => p.id === item.sparePartId);
+        const price = part ? safeNumber(part.price, 0) : 0;
+        const qty = safeNumber(item.quantity, 0);
+        return sum + price * qty;
+      }, 0);
+    }
+    return 0;
+  }, [order, spareParts]);
+
+  const laborCost = useMemo(() => {
+    const hours = order?.laborHours !== undefined ? safeNumber(order.laborHours, 0) : laborHours;
+    return hours * 80;
+  }, [order?.laborHours, laborHours]);
+
+  const totalCost = useMemo(() => {
+    if (order?.totalCost !== undefined) {
+      return safeNumber(order.totalCost, 0);
+    }
+    return sparePartsCost + laborCost;
+  }, [order?.totalCost, sparePartsCost, laborCost]);
+
   const currentItem = orderItems[currentItemIndex];
 
   const handleItemResultChange = (itemId: string, result: Partial<MaintenanceItemResult>) => {
@@ -86,7 +166,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
     handleItemResultChange(currentItem.id, { status });
   };
 
-  const handleAddSparePart = (part: any) => {
+  const handleAddSparePart = (part: { id: string; name: string; partCode?: string; specification?: string; unit: string; price?: number }) => {
     setSparePartUsages((prev) => [
       ...prev,
       {
@@ -128,9 +208,12 @@ export const MaintenanceOrderDetail: React.FC = () => {
 
     try {
       const results = Array.from(itemResults.values());
-      const totalCost =
-        sparePartUsages.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) +
-        laborHours * 80;
+      const sparePartsTotal = sparePartUsages.reduce(
+        (sum, item) => sum + safeNumber(item.unitPrice, 0) * safeNumber(item.quantity, 0),
+        0
+      );
+      const laborTotal = safeNumber(laborHours, 0) * 80;
+      const calculatedTotalCost = sparePartsTotal + laborTotal;
 
       await updateMaintenanceOrder(order.id, {
         status: 'completed',
@@ -138,8 +221,8 @@ export const MaintenanceOrderDetail: React.FC = () => {
         completedItems: results.filter((r) => r.status === 'completed').length,
         results,
         spareParts: sparePartUsages,
-        laborHours,
-        totalCost,
+        laborHours: safeNumber(laborHours, 0),
+        totalCost: calculatedTotalCost,
         remark,
       });
 
@@ -170,21 +253,6 @@ export const MaintenanceOrderDetail: React.FC = () => {
       </div>
     );
   }
-
-  const progress =
-    orderItems.length > 0
-      ? ((order.completedItems || itemResults.size) / orderItems.length) * 100
-      : 0;
-
-  const completionStats = useMemo(() => {
-    const values = Array.from(itemResults.values());
-    return {
-      completed: values.filter((v) => v.status === 'completed').length,
-      skipped: values.filter((v) => v.status === 'skipped').length,
-      replaced: values.filter((v) => v.status === 'replaced').length,
-      total: orderItems.length,
-    };
-  }, [itemResults, orderItems.length]);
 
   const isMine = order.assigneeId === user?.id;
   const canEdit =
@@ -323,14 +391,14 @@ export const MaintenanceOrderDetail: React.FC = () => {
                   {formatDate(new Date(order.createdAt), 'YYYY-MM-DD HH:mm')}
                 </span>
               </div>
-              {order.totalCost !== undefined && (
+              {totalCost > 0 && (
                 <div className="flex justify-between items-center py-2">
                   <span className="text-sm text-neutral-500 flex items-center">
                     <Package size={14} className="mr-2" />
                     费用总计
                   </span>
                   <span className="text-lg font-bold text-primary-600">
-                    ¥{order.totalCost.toFixed(2)}
+                    ¥{formatPrice(totalCost)}
                   </span>
                 </div>
               )}
@@ -669,7 +737,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
           </div>
         )}
 
-        {order.status === 'completed' && order.results && (
+        {order.status === 'completed' && (
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-neutral-700 mb-4">保养结果</h3>
@@ -695,84 +763,173 @@ export const MaintenanceOrderDetail: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {order.results?.map((result, index) => {
-                  const item = orderItems.find((i) => i.id === result.itemId);
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        {result.status === 'completed' ? (
-                          <div className="w-8 h-8 bg-success-100 rounded-lg flex items-center justify-center mr-3">
-                            <CheckCircle2 size={16} className="text-success-500" />
-                          </div>
-                        ) : result.status === 'replaced' ? (
-                          <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
-                            <Package size={16} className="text-primary-500" />
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 bg-warning-100 rounded-lg flex items-center justify-center mr-3">
-                            <AlertTriangle size={16} className="text-warning-500" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-neutral-700 text-sm truncate">
-                            {item?.name || '未知项'}
-                          </p>
-                          {result.value && (
-                            <p className="text-xs text-neutral-500">
-                              值：{result.value}
-                            </p>
-                          )}
-                          {result.remark && (
-                            <p className="text-xs text-neutral-400 mt-0.5 truncate">
-                              备注：{result.remark}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {order.spareParts && order.spareParts.length > 0 && (
-                <>
-                  <h4 className="font-medium text-neutral-700 mt-4 mb-3">使用备件</h4>
-                  <div className="space-y-2">
-                    {order.spareParts.map((part, index) => (
+                {order.results && order.results.length > 0 ? (
+                  order.results.map((result, index) => {
+                    const item = orderItems.find((i) => i.id === result.itemId);
+                    return (
                       <div
                         key={index}
                         className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-neutral-700 text-sm">
-                            {part.partName}
-                          </p>
-                          <p className="text-xs text-neutral-500">
-                            {part.partCode} · {part.specification}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-neutral-700">
-                            {part.quantity} {part.unit}
-                          </p>
-                          <p className="text-xs text-primary-500">
-                            ¥{(part.unitPrice * part.quantity).toFixed(2)}
-                          </p>
+                        <div className="flex items-center flex-1 min-w-0">
+                          {result.status === 'completed' ? (
+                            <div className="w-8 h-8 bg-success-100 rounded-lg flex items-center justify-center mr-3">
+                              <CheckCircle2 size={16} className="text-success-500" />
+                            </div>
+                          ) : result.status === 'replaced' ? (
+                            <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                              <Package size={16} className="text-primary-500" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 bg-warning-100 rounded-lg flex items-center justify-center mr-3">
+                              <AlertTriangle size={16} className="text-warning-500" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-neutral-700 text-sm truncate">
+                              {item?.name || result.name || '未知项'}
+                            </p>
+                            {result.value && (
+                              <p className="text-xs text-neutral-500">
+                                值：{result.value}
+                              </p>
+                            )}
+                            {result.remark && (
+                              <p className="text-xs text-neutral-400 mt-0.5 truncate">
+                                备注：{result.remark}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })
+                ) : orderItems.length > 0 ? (
+                  orderItems.map((item, index) => {
+                    const status = (item as any).status || 'pending';
+                    return (
+                      <div
+                        key={item.id || index}
+                        className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
+                      >
+                        <div className="flex items-center flex-1 min-w-0">
+                          {status === 'completed' ? (
+                            <div className="w-8 h-8 bg-success-100 rounded-lg flex items-center justify-center mr-3">
+                              <CheckCircle2 size={16} className="text-success-500" />
+                            </div>
+                          ) : status === 'replaced' ? (
+                            <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                              <Package size={16} className="text-primary-500" />
+                            </div>
+                          ) : status === 'skipped' ? (
+                            <div className="w-8 h-8 bg-warning-100 rounded-lg flex items-center justify-center mr-3">
+                              <AlertTriangle size={16} className="text-warning-500" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center mr-3">
+                              <Clock size={16} className="text-neutral-500" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-neutral-700 text-sm truncate">
+                              {item.name || '未知项'}
+                            </p>
+                            {(item as any).description && (
+                              <p className="text-xs text-neutral-500 truncate">
+                                {(item as any).description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-4 text-neutral-400 text-sm">
+                    暂无保养结果
+                  </div>
+                )}
+              </div>
+
+              {(order.spareParts && order.spareParts.length > 0) || (order.materials && order.materials.length > 0) ? (
+                <>
+                  <h4 className="font-medium text-neutral-700 mt-4 mb-3">使用备件</h4>
+                  <div className="space-y-2">
+                    {order.spareParts && order.spareParts.length > 0
+                      ? order.spareParts.map((part, index) => {
+                          const price = safeNumber(part.unitPrice, 0);
+                          const qty = safeNumber(part.quantity, 0);
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-neutral-700 text-sm">
+                                  {part.partName || part.name || '未知备件'}
+                                </p>
+                                <p className="text-xs text-neutral-500">
+                                  {part.partCode || ''} {part.specification ? `· ${part.specification}` : ''}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-neutral-700">
+                                  {qty} {part.unit || ''}
+                                </p>
+                                {price > 0 && (
+                                  <p className="text-xs text-primary-500">
+                                    ¥{formatPrice(price * qty)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      : order.materials?.map((material, index) => {
+                          const part = spareParts.find((p) => p.id === material.sparePartId);
+                          const price = part ? safeNumber(part.price, 0) : 0;
+                          const qty = safeNumber(material.quantity, 0);
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-neutral-700 text-sm">
+                                  {material.name || part?.name || '未知备件'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-neutral-700">
+                                  {qty} {material.unit || ''}
+                                </p>
+                                {price > 0 && (
+                                  <p className="text-xs text-primary-500">
+                                    ¥{formatPrice(price * qty)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                   </div>
                 </>
-              )}
+              ) : null}
 
               {order.laborHours !== undefined && (
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-neutral-100">
                   <span className="text-sm text-neutral-500">工时</span>
                   <span className="text-sm font-medium text-neutral-700">
-                    {order.laborHours} 小时 (¥{order.laborHours * 80})
+                    {safeNumber(order.laborHours, 0)} 小时 (¥{formatPrice(safeNumber(order.laborHours, 0) * 80)})
+                  </span>
+                </div>
+              )}
+
+              {totalCost > 0 && (
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-neutral-100">
+                  <span className="text-sm text-neutral-500">费用合计</span>
+                  <span className="text-lg font-bold text-primary-600">
+                    ¥{formatPrice(totalCost)}
                   </span>
                 </div>
               )}
@@ -828,13 +985,12 @@ export const MaintenanceOrderDetail: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-neutral-600">预计费用</span>
                 <span className="text-xl font-bold text-primary-600">
-                  ¥
-                  {(
+                  ¥{formatPrice(
                     sparePartUsages.reduce(
-                      (sum, item) => sum + item.unitPrice * item.quantity,
+                      (sum, item) => sum + safeNumber(item.unitPrice, 0) * safeNumber(item.quantity, 0),
                       0
-                    ) + laborHours * 80
-                  ).toFixed(2)}
+                    ) + safeNumber(laborHours, 0) * 80
+                  )}
                 </span>
               </div>
             </div>
@@ -886,7 +1042,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-neutral-700">
-                        ¥{part.price.toFixed(2)}
+                        ¥{formatPrice(part.price)}
                       </p>
                       <p className="text-xs text-neutral-400">/{part.unit}</p>
                     </div>

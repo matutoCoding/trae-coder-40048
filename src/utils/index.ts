@@ -290,3 +290,15 @@ export const debounce = <T extends (...args: unknown[]) => unknown>(
 export const classNames = (...classes: (string | undefined | null | false)[]): string => {
   return classes.filter(Boolean).join(' ');
 };
+
+export const safeNumber = (value: unknown, fallback: number = 0): number => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const num = Number(value);
+  return isNaN(num) ? fallback : num;
+};
+
+export const formatPrice = (value: unknown, fallback: string = '--'): string => {
+  const num = safeNumber(value, NaN);
+  if (isNaN(num)) return fallback;
+  return num.toFixed(2);
+};
