@@ -74,7 +74,11 @@ export const SparePartRequestDetail: React.FC = () => {
 
     try {
       request.items.forEach((item) => {
-        updateSparePartStock(item.partId, item.quantity);
+        const partId = item.partId ?? item.sparePartId;
+        const qty = Number(item.quantity ?? 0) || 0;
+        if (partId && qty > 0) {
+          updateSparePartStock(partId, -qty);
+        }
       });
 
       await updateSparePartRequest(request.id, {
@@ -209,25 +213,25 @@ export const SparePartRequestDetail: React.FC = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-neutral-700">
-                        {item.partName}
+                        {item.partName ?? item.name}
                       </p>
                       <p className="text-xs text-neutral-500">
-                        {item.partCode} · {item.specification}
+                        {item.partCode ?? ''} · {item.specification ?? ''}
                       </p>
                     </div>
                     <div className="text-right ml-3 flex-shrink-0">
                       <p className="text-sm font-medium text-neutral-700">
-                        {item.quantity} {item.unit}
+                        {Number(item.quantity ?? 0) || 0} {item.unit}
                       </p>
                       <p className="text-xs text-primary-500">
-                        ¥{item.unitPrice.toFixed(2)}/{item.unit}
+                        ¥{(Number(item.unitPrice ?? 0) || 0).toFixed(2)}/{item.unit}
                       </p>
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
                     <span className="text-xs text-neutral-400">小计</span>
                     <span className="text-sm font-bold text-primary-600">
-                      ¥{(item.unitPrice * item.quantity).toFixed(2)}
+                      ¥{((Number(item.unitPrice ?? 0) || 0) * (Number(item.quantity ?? 0) || 0)).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -238,7 +242,7 @@ export const SparePartRequestDetail: React.FC = () => {
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm text-neutral-600">备件总数</span>
                 <span className="text-sm font-medium text-neutral-700">
-                  {request.items.reduce((sum, item) => sum + item.quantity, 0)} 件
+                  {request.items.reduce((sum, item) => sum + (Number(item.quantity ?? 0) || 0), 0)} 件
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -246,7 +250,7 @@ export const SparePartRequestDetail: React.FC = () => {
                   合计金额
                 </span>
                 <span className="text-2xl font-bold text-primary-600">
-                  ¥{request.totalAmount.toFixed(2)}
+                  ¥{(Number(request.totalAmount ?? 0) || 0).toFixed(2)}
                 </span>
               </div>
             </div>

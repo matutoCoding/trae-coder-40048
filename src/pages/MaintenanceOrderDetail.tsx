@@ -59,8 +59,12 @@ export const MaintenanceOrderDetail: React.FC = () => {
     () => devices.find((d) => d.id === order?.deviceId),
     [devices, order]
   );
+  const orderItems = useMemo(
+    () => order?.items || order?.tasks || [],
+    [order]
+  );
 
-  const currentItem = order?.items[currentItemIndex];
+  const currentItem = orderItems[currentItemIndex];
 
   const handleItemResultChange = (itemId: string, result: Partial<MaintenanceItemResult>) => {
     setItemResults((prev) => {
@@ -168,8 +172,8 @@ export const MaintenanceOrderDetail: React.FC = () => {
   }
 
   const progress =
-    order.items.length > 0
-      ? ((order.completedItems || itemResults.size) / order.items.length) * 100
+    orderItems.length > 0
+      ? ((order.completedItems || itemResults.size) / orderItems.length) * 100
       : 0;
 
   const completionStats = useMemo(() => {
@@ -178,9 +182,9 @@ export const MaintenanceOrderDetail: React.FC = () => {
       completed: values.filter((v) => v.status === 'completed').length,
       skipped: values.filter((v) => v.status === 'skipped').length,
       replaced: values.filter((v) => v.status === 'replaced').length,
-      total: order.items.length,
+      total: orderItems.length,
     };
-  }, [itemResults, order.items.length]);
+  }, [itemResults, orderItems.length]);
 
   const isMine = order.assigneeId === user?.id;
   const canEdit =
@@ -348,7 +352,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-neutral-700">保养项执行</h3>
                   <span className="text-sm text-neutral-500">
-                    {currentItemIndex + 1}/{order.items.length}
+                    {currentItemIndex + 1}/{orderItems.length}
                   </span>
                 </div>
 
@@ -498,12 +502,12 @@ export const MaintenanceOrderDetail: React.FC = () => {
                     <ChevronLeft size={16} className="mr-1" />
                     上一项
                   </Button>
-                  {currentItemIndex < order.items.length - 1 ? (
+                  {currentItemIndex < orderItems.length - 1 ? (
                     <Button
                       variant="primary"
                       onClick={() =>
                         setCurrentItemIndex((i) =>
-                          Math.min(order.items.length - 1, i + 1)
+                          Math.min(orderItems.length - 1, i + 1)
                         )
                       }
                       className="flex-1 ml-2"
@@ -529,7 +533,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
               <CardContent className="p-4">
                 <h4 className="font-medium text-neutral-700 mb-3">保养项导航</h4>
                 <div className="grid grid-cols-6 gap-2">
-                  {order.items.map((item, index) => {
+                  {orderItems.map((item, index) => {
                     const result = itemResults.get(item.id);
                     const isActive = index === currentItemIndex;
                     return (
@@ -691,8 +695,8 @@ export const MaintenanceOrderDetail: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {order.results.map((result, index) => {
-                  const item = order.items.find((i) => i.id === result.itemId);
+                {order.results?.map((result, index) => {
+                  const item = orderItems.find((i) => i.id === result.itemId);
                   return (
                     <div
                       key={index}

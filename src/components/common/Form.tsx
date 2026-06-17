@@ -7,7 +7,7 @@ interface InputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: 'text' | 'number' | 'password' | 'textarea';
+  type?: 'text' | 'number' | 'password' | 'textarea' | 'date';
   required?: boolean;
   error?: string;
   disabled?: boolean;

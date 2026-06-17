@@ -18,6 +18,7 @@ import { ScanQR } from '../pages/ScanQR';
 import { InspectionExecute } from '../pages/InspectionExecute';
 import { InspectionComplete } from '../pages/InspectionComplete';
 import { MaintenanceOrderList } from '../pages/MaintenanceOrderList';
+import { MaintenanceOrderCreate } from '../pages/MaintenanceOrderCreate';
 import { MaintenanceOrderDetail } from '../pages/MaintenanceOrderDetail';
 import { RepairList } from '../pages/RepairList';
 import { RepairCreate } from '../pages/RepairCreate';
@@ -123,6 +124,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <MaintenanceOrderList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/maintenance-orders/create"
+          element={
+            <ProtectedRoute>
+              <MaintenanceOrderCreate />
             </ProtectedRoute>
           }
         />

@@ -58,11 +58,15 @@ export const SparePartList: React.FC = () => {
 
   const stats = useMemo(() => {
     const totalValue = spareParts.reduce(
-      (sum, part) => sum + part.stock * part.price,
+      (sum, part) => {
+        const stock = Number(part.stock ?? part.stockQuantity ?? 0) || 0;
+        const price = Number(part.price ?? part.unitPrice ?? 0) || 0;
+        return sum + stock * price;
+      },
       0
     );
     const lowStock = spareParts.filter(
-      (p) => p.stock <= p.minStock
+      (p) => (Number(p.stock ?? p.stockQuantity ?? 0) || 0) <= (Number(p.minStock ?? 0) || 0)
     ).length;
     const pendingRequests = sparePartRequests.filter(
       (r) => r.status === 'pending'
@@ -98,21 +102,24 @@ export const SparePartList: React.FC = () => {
 
   const filteredParts = useMemo(() => {
     return spareParts.filter((part) => {
+      const partCode = part.partCode ?? part.partNo ?? '';
+      const specification = part.specification ?? part.specifications ?? '';
       const matchSearch =
         part.name.toLowerCase().includes(search.toLowerCase()) ||
-        part.partCode.toLowerCase().includes(search.toLowerCase()) ||
-        part.specification.toLowerCase().includes(search.toLowerCase());
+        String(partCode).toLowerCase().includes(search.toLowerCase()) ||
+        String(specification).toLowerCase().includes(search.toLowerCase());
 
       const matchCategory = category === 'all' || part.category === category;
 
+      const stock = Number(part.stock ?? part.stockQuantity ?? 0) || 0;
+      const minStock = Number(part.minStock ?? 0) || 0;
       let stockMatch = true;
       if (stockStatus === '充足') {
-        stockMatch = part.stock > part.minStock * 2;
+        stockMatch = stock > minStock * 2;
       } else if (stockStatus === '警告') {
-        stockMatch =
-          part.stock <= part.minStock * 2 && part.stock > part.minStock;
+        stockMatch = stock <= minStock * 2 && stock > minStock;
       } else if (stockStatus === '不足') {
-        stockMatch = part.stock <= part.minStock;
+        stockMatch = stock <= minStock;
       }
 
       return matchSearch && matchCategory && stockMatch;
@@ -120,9 +127,11 @@ export const SparePartList: React.FC = () => {
   }, [spareParts, search, category, stockStatus]);
 
   const getStockStatus = (part: any) => {
-    if (part.stock <= part.minStock) {
+    const stock = Number(part.stock ?? part.stockQuantity ?? 0) || 0;
+    const minStock = Number(part.minStock ?? 0) || 0;
+    if (stock <= minStock) {
       return { text: '库存不足', color: 'danger' };
-    } else if (part.stock <= part.minStock * 2) {
+    } else if (stock <= minStock * 2) {
       return { text: '库存警告', color: 'warning' };
     }
     return { text: '库存充足', color: 'success' };
@@ -295,7 +304,7 @@ export const SparePartList: React.FC = () => {
                             />
                           </div>
                           <p className="text-xs text-neutral-500 mt-1">
-                            {part.partCode} · {part.specification}
+                            {part.partCode ?? part.partNo} · {part.specification ?? part.specifications ?? ''}
                           </p>
                           <div className="flex items-center text-xs text-neutral-400 mt-2">
                             <span
@@ -327,16 +336,16 @@ export const SparePartList: React.FC = () => {
                                 : 'text-primary-600'
                             )}
                           >
-                            {part.stock}
+                            {Number(part.stock ?? part.stockQuantity ?? 0) || 0}
                             <span className="text-xs text-neutral-400 font-normal ml-1">
                               {part.unit}
                             </span>
                           </p>
                           <p className="text-xs text-neutral-400 mt-1">
-                            安全库存 {part.minStock}
+                            安全库存 {Number(part.minStock ?? 0) || 0}
                           </p>
                           <p className="text-xs text-primary-500 font-medium mt-1">
-                            ¥{part.price.toFixed(2)}/{part.unit}
+                            ¥{(Number(part.price ?? part.unitPrice ?? 0) || 0).toFixed(2)}/{part.unit}
                           </p>
                         </div>
                       </div>
@@ -399,7 +408,7 @@ export const SparePartList: React.FC = () => {
                           {part.name}
                         </h3>
                         <p className="text-xs text-neutral-400 mt-0.5 truncate">
-                          {part.partCode}
+                          {part.partCode ?? part.partNo}
                         </p>
                         <p
                           className={classNames(
@@ -411,7 +420,7 @@ export const SparePartList: React.FC = () => {
                               : 'text-primary-600'
                           )}
                         >
-                          {part.stock}
+                          {Number(part.stock ?? part.stockQuantity ?? 0) || 0}
                           <span className="text-xs text-neutral-400 font-normal ml-1">
                             {part.unit}
                           </span>
@@ -534,7 +543,7 @@ export const SparePartList: React.FC = () => {
                               key={i}
                               className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full"
                             >
-                              {item.partName} ×{item.quantity}
+                              {item.partName ?? item.name} ×{Number(item.quantity ?? 0) || 0}
                             </span>
                           ))}
                           {request.items.length > 3 && (
@@ -556,7 +565,7 @@ export const SparePartList: React.FC = () => {
                           {request.items
                             .reduce(
                               (sum, item) =>
-                                sum + item.unitPrice * item.quantity,
+                                sum + (Number(item.unitPrice ?? 0) || 0) * (Number(item.quantity ?? 0) || 0),
                               0
                             )
                             .toFixed(2)}

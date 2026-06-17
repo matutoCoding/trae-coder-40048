@@ -312,7 +312,7 @@ export const RepairList: React.FC = () => {
 
       <FloatingButton
         icon={<Plus size={24} />}
-        onClick={() => navigate('/repair/create')}
+        onClick={() => navigate('/repair-orders/create')}
       />
 
       <BottomNav active="repair" />

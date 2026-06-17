@@ -150,11 +150,11 @@ export const DeviceList: React.FC = () => {
                         </span>
                         <span className="flex items-center">
                           <Calendar size={12} className="mr-1" />
-                          {formatDate(new Date(device.installDate), 'YYYY-MM-DD')}
+                          {formatDate(device.installDate, 'YYYY-MM-DD')}
                         </span>
                         <span className="flex items-center">
                           <Activity size={12} className="mr-1" />
-                          {device.runHours}h
+                          {device.runHours !== undefined && device.runHours !== null ? `${device.runHours}h` : '--h'}
                         </span>
                       </div>
                     </div>
@@ -198,7 +198,7 @@ export const DeviceList: React.FC = () => {
                     {device.location}
                   </p>
                   <p className="text-xs text-primary-500 mt-2">
-                    运行 {device.runHours}h
+                    运行 {device.runHours !== undefined && device.runHours !== null ? `${device.runHours}h` : '--h'}
                   </p>
                 </CardContent>
               </Card>

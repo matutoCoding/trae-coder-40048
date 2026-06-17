@@ -88,7 +88,7 @@ export const RepairCreate: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const orderId = createRepairOrder({
+      const newOrder = createRepairOrder({
         id: generateId('repair'),
         orderNo: `WX${formatDate(new Date(), 'YYYYMMDDHHmmss')}`,
         deviceId: formData.deviceId,
@@ -115,7 +115,7 @@ export const RepairCreate: React.FC = () => {
       }
 
       setTimeout(() => {
-        navigate(`/repair-orders/${orderId}`);
+        navigate(`/repair-orders/${newOrder.id}`);
       }, 500);
     } catch (error) {
       console.error('Create repair order error:', error);

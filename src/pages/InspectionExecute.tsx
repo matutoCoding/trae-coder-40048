@@ -42,12 +42,13 @@ export const InspectionExecute: React.FC = () => {
   const device = useMemo(() => devices.find((d) => d.id === deviceId), [devices, deviceId]);
   const items = useMemo(() => {
     if (!device) return [];
-    return inspectionItems.filter(
-      (item) =>
-        item.deviceId === device.id ||
-        item.applicableModels.includes(device.model) ||
-        item.applicableModels.includes('all')
-    );
+    return inspectionItems.filter((item) => {
+      if (item.deviceId === device.id) return true;
+      if (!item.applicableModels || item.applicableModels.length === 0) return true;
+      if (item.applicableModels.includes('all')) return true;
+      if (device.model && item.applicableModels.includes(device.model)) return true;
+      return false;
+    });
   }, [device, inspectionItems]);
 
   const currentItem = items[currentIndex];

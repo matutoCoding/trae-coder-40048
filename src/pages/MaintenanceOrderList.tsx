@@ -50,9 +50,9 @@ export const MaintenanceOrderList: React.FC = () => {
       result = result.filter((o) => {
         const device = devices.find((d) => d.id === o.deviceId);
         return (
-          o.orderNo.toLowerCase().includes(keyword) ||
-          o.description.toLowerCase().includes(keyword) ||
-          o.assigneeName.toLowerCase().includes(keyword) ||
+          (o.orderNo || '').toLowerCase().includes(keyword) ||
+          (o.description || '').toLowerCase().includes(keyword) ||
+          (o.assigneeName || '').toLowerCase().includes(keyword) ||
           device?.name.toLowerCase().includes(keyword) ||
           device?.deviceNo.toLowerCase().includes(keyword)
         );
@@ -256,10 +256,10 @@ export const MaintenanceOrderList: React.FC = () => {
                       </div>
                     )}
 
-                    {order.items.length > 0 && (
+                    {(order.items?.length || order.tasks?.length || 0) > 0 && (
                       <div className="flex items-center text-xs text-neutral-500 mb-3">
                         <CheckCircle2 size={12} className="mr-1.5 text-success-500" />
-                        保养项：{order.completedItems || 0}/{order.items.length} 已完成
+                        保养项：{order.completedItems || 0}/{order.items?.length || order.tasks?.length || 0} 已完成
                       </div>
                     )}
 
@@ -298,7 +298,7 @@ export const MaintenanceOrderList: React.FC = () => {
 
       <FloatingButton
         icon={<Plus size={24} />}
-        onClick={() => navigate('/maintenance/create')}
+        onClick={() => navigate('/maintenance-orders/create')}
       />
 
       <BottomNav active="maintenance" />

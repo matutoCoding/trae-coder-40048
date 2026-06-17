@@ -78,8 +78,11 @@ export const DeviceDetail: React.FC = () => {
   };
 
   const handleCreateMaintenance = () => {
-    const orderId = createMaintenanceOrder({
+    const newOrder = createMaintenanceOrder({
       deviceId: device.id,
+      deviceName: device.name,
+      deviceNo: device.deviceNo,
+      title: `${device.name} - 日常保养`,
       maintenanceType: '日常',
       description: '日常保养',
       scheduledDate: new Date().toISOString(),
@@ -88,11 +91,11 @@ export const DeviceDetail: React.FC = () => {
       items: [],
       status: 'pending',
     });
-    navigate(`/maintenance-orders/${orderId}`);
+    navigate(`/maintenance-orders/${newOrder.id}`);
   };
 
   const handleCreateRepair = () => {
-    navigate('/repair/create', { state: { deviceId: device.id } });
+    navigate('/repair-orders/create', { state: { deviceId: device.id } });
   };
 
   const quickActions = [
@@ -125,21 +128,53 @@ export const DeviceDetail: React.FC = () => {
   ];
 
   const infoItems = [
-    { icon: <Factory size={16} />, label: '设备编号', value: device.deviceNo },
-    { icon: <Cog size={16} />, label: '设备型号', value: device.model },
-    { icon: <Factory size={16} />, label: '生产厂家', value: device.manufacturer },
-    { icon: <MapPin size={16} />, label: '安装位置', value: device.location },
-    { icon: <Calendar size={16} />, label: '安装日期', value: formatDate(new Date(device.installDate), 'YYYY-MM-DD') },
-    { icon: <Activity size={16} />, label: '累计运行', value: `${device.runHours} 小时` },
-    { icon: <Calendar size={16} />, label: '上次保养', value: device.lastMaintenanceDate ? formatDate(new Date(device.lastMaintenanceDate), 'YYYY-MM-DD') : '暂无' },
-    { icon: <Clock size={16} />, label: '下次保养', value: device.nextMaintenanceDate ? formatDate(new Date(device.nextMaintenanceDate), 'YYYY-MM-DD') : '暂无' },
+    { icon: <Factory size={16} />, label: '设备编号', value: device.deviceNo || '--' },
+    { icon: <Cog size={16} />, label: '设备型号', value: device.model || '--' },
+    { icon: <Factory size={16} />, label: '生产厂家', value: device.manufacturer || '--' },
+    { icon: <MapPin size={16} />, label: '安装位置', value: device.location || '--' },
+    { icon: <Calendar size={16} />, label: '安装日期', value: formatDate(device.installDate, 'YYYY-MM-DD') },
+    { icon: <Activity size={16} />, label: '累计运行', value: device.runHours !== undefined && device.runHours !== null ? `${device.runHours} 小时` : '--' },
+    { icon: <Calendar size={16} />, label: '上次保养', value: formatDate(device.lastMaintenanceDate, 'YYYY-MM-DD', '暂无') },
+    { icon: <Clock size={16} />, label: '下次保养', value: formatDate(device.nextMaintenanceDate, 'YYYY-MM-DD', '暂无') },
   ];
 
   const realtimeData = [
-    { icon: <Gauge size={16} />, label: '主轴转速', value: device.realtimeData?.spindleSpeed || 0, unit: 'rpm', status: 'normal' },
-    { icon: <Thermometer size={16} />, label: '主轴温度', value: device.realtimeData?.temperature || 0, unit: '°C', status: device.realtimeData?.temperature > 60 ? 'warning' : 'normal' },
-    { icon: <Droplets size={16} />, label: '油压', value: device.realtimeData?.oilPressure || 0, unit: 'MPa', status: device.realtimeData?.oilPressure < 0.5 ? 'warning' : 'normal' },
-    { icon: <Droplets size={16} />, label: '油位', value: device.realtimeData?.oilLevel || 0, unit: '%', status: device.realtimeData?.oilLevel < 30 ? 'danger' : 'normal' },
+    {
+      icon: <Gauge size={16} />,
+      label: '主轴转速',
+      value: device.realtimeData?.spindleSpeed !== undefined && device.realtimeData?.spindleSpeed !== null
+        ? device.realtimeData.spindleSpeed
+        : null,
+      unit: 'rpm',
+      status: 'normal'
+    },
+    {
+      icon: <Thermometer size={16} />,
+      label: '主轴温度',
+      value: device.realtimeData?.temperature !== undefined && device.realtimeData?.temperature !== null
+        ? device.realtimeData.temperature
+        : null,
+      unit: '°C',
+      status: device.realtimeData?.temperature !== undefined && device.realtimeData?.temperature !== null && device.realtimeData.temperature > 60 ? 'warning' : 'normal'
+    },
+    {
+      icon: <Droplets size={16} />,
+      label: '油压',
+      value: device.realtimeData?.oilPressure !== undefined && device.realtimeData?.oilPressure !== null
+        ? device.realtimeData.oilPressure
+        : null,
+      unit: 'MPa',
+      status: device.realtimeData?.oilPressure !== undefined && device.realtimeData?.oilPressure !== null && device.realtimeData.oilPressure < 0.5 ? 'warning' : 'normal'
+    },
+    {
+      icon: <Droplets size={16} />,
+      label: '油位',
+      value: device.realtimeData?.oilLevel !== undefined && device.realtimeData?.oilLevel !== null
+        ? device.realtimeData.oilLevel
+        : null,
+      unit: '%',
+      status: device.realtimeData?.oilLevel !== undefined && device.realtimeData?.oilLevel !== null && device.realtimeData.oilLevel < 30 ? 'danger' : 'normal'
+    },
   ];
 
   return (
@@ -260,16 +295,18 @@ export const DeviceDetail: React.FC = () => {
                   <p
                     className={classNames(
                       'text-2xl font-bold',
-                      item.status === 'normal'
+                      item.value === null
+                        ? 'text-neutral-400'
+                        : item.status === 'normal'
                         ? 'text-success-600'
                         : item.status === 'warning'
                         ? 'text-warning-600'
                         : 'text-danger-600'
                     )}
                   >
-                    {item.value}
+                    {item.value !== null ? item.value : '--'}
                     <span className="text-sm font-normal ml-1 opacity-80">
-                      {item.unit}
+                      {item.value !== null ? item.unit : ''}
                     </span>
                   </p>
                 </div>
@@ -289,12 +326,12 @@ export const DeviceDetail: React.FC = () => {
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-neutral-600">整体健康度</span>
                   <span className="text-sm font-medium text-primary-600">
-                    {device.healthScore}%
+                    {device.healthScore !== undefined && device.healthScore !== null ? `${device.healthScore}%` : '--'}
                   </span>
                 </div>
                 <ProgressBar
-                  progress={device.healthScore}
-                  color={device.healthScore >= 80 ? 'success' : device.healthScore >= 60 ? 'warning' : 'danger'}
+                  progress={device.healthScore ?? 0}
+                  color={(device.healthScore ?? 0) >= 80 ? 'success' : (device.healthScore ?? 0) >= 60 ? 'warning' : 'danger'}
                   height={10}
                 />
               </div>
@@ -302,10 +339,10 @@ export const DeviceDetail: React.FC = () => {
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-neutral-600">设备利用率</span>
                   <span className="text-sm font-medium text-success-600">
-                    {device.utilizationRate}%
+                    {device.utilizationRate !== undefined && device.utilizationRate !== null ? `${device.utilizationRate}%` : '--'}
                   </span>
                 </div>
-                <ProgressBar progress={device.utilizationRate} color="success" height={10} />
+                <ProgressBar progress={device.utilizationRate ?? 0} color="success" height={10} />
               </div>
               <div>
                 <div className="flex justify-between mb-1">

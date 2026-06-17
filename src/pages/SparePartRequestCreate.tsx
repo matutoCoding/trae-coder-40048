@@ -46,9 +46,9 @@ export const SparePartRequestCreate: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableParts = useMemo(() => {
-    const selectedPartIds = formData.items.map((item) => item.partId);
+    const selectedPartIds = formData.items.map((item) => item.partId ?? item.sparePartId).filter(Boolean);
     return spareParts.filter(
-      (p) => !selectedPartIds.includes(p.id) && p.stock > 0
+      (p) => !selectedPartIds.includes(p.id) && (Number(p.stock ?? p.stockQuantity ?? 0) || 0) > 0
     );
   }, [spareParts, formData.items]);
 
@@ -68,12 +68,14 @@ export const SparePartRequestCreate: React.FC = () => {
         ...prev.items,
         {
           partId: part.id,
+          sparePartId: part.id,
           partName: part.name,
-          partCode: part.partCode,
-          specification: part.specification,
+          name: part.name,
+          partCode: part.partCode ?? part.partNo ?? '',
+          specification: part.specification ?? part.specifications ?? '',
           quantity: 1,
           unit: part.unit,
-          unitPrice: part.price,
+          unitPrice: Number(part.price ?? part.unitPrice ?? 0) || 0,
         },
       ],
     }));
@@ -82,11 +84,12 @@ export const SparePartRequestCreate: React.FC = () => {
 
   const handleUpdateQuantity = (index: number, quantity: number) => {
     if (quantity < 0) return;
-    const part = spareParts.find(
-      (p) => p.id === formData.items[index].partId
-    );
-    if (part && quantity > part.stock) {
-      setErrors({ [`qty_${index}`]: `库存不足，最大 ${part.stock} ${part.unit}` });
+    const safeQty = Number(quantity) || 0;
+    const partId = formData.items[index]?.partId ?? formData.items[index]?.sparePartId;
+    const part = spareParts.find((p) => p.id === partId);
+    const stock = Number(part?.stock ?? part?.stockQuantity ?? 0) || 0;
+    if (part && safeQty > stock) {
+      setErrors({ [`qty_${index}`]: `库存不足，最大 ${stock} ${part.unit}` });
       return;
     }
     setErrors((prev) => {
@@ -97,7 +100,7 @@ export const SparePartRequestCreate: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       items: prev.items.map((item, i) =>
-        i === index ? { ...item, quantity } : item
+        i === index ? { ...item, quantity: safeQty } : item
       ),
     }));
   };
@@ -111,7 +114,7 @@ export const SparePartRequestCreate: React.FC = () => {
 
   const totalAmount = useMemo(() => {
     return formData.items
-      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+      .reduce((sum, item) => sum + (Number(item.unitPrice ?? 0) || 0) * (Number(item.quantity ?? 0) || 0), 0)
       .toFixed(2);
   }, [formData.items]);
 
@@ -123,11 +126,14 @@ export const SparePartRequestCreate: React.FC = () => {
     }
 
     formData.items.forEach((item, index) => {
-      const part = spareParts.find((p) => p.id === item.partId);
-      if (part && item.quantity > part.stock) {
-        newErrors[`qty_${index}`] = `库存不足，最大 ${part.stock} ${part.unit}`;
+      const partId = item.partId ?? item.sparePartId;
+      const part = spareParts.find((p) => p.id === partId);
+      const stock = Number(part?.stock ?? part?.stockQuantity ?? 0) || 0;
+      const qty = Number(item.quantity ?? 0) || 0;
+      if (part && qty > stock) {
+        newErrors[`qty_${index}`] = `库存不足，最大 ${stock} ${part.unit}`;
       }
-      if (item.quantity <= 0) {
+      if (qty <= 0) {
         newErrors[`qty_${index}`] = '数量必须大于0';
       }
     });
@@ -146,11 +152,7 @@ export const SparePartRequestCreate: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      formData.items.forEach((item) => {
-        updateSparePartStock(item.partId, -item.quantity);
-      });
-
-      const requestId = createSparePartRequest({
+      const newRequest = createSparePartRequest({
         id: generateId('spr'),
         requestNo: `LY${formatDate(new Date(), 'YYYYMMDDHHmmss')}`,
         requesterId: user.id,
@@ -165,8 +167,16 @@ export const SparePartRequestCreate: React.FC = () => {
         createdAt: new Date().toISOString(),
       });
 
+      formData.items.forEach((item) => {
+        const partId = item.partId ?? item.sparePartId;
+        const qty = Number(item.quantity ?? 0) || 0;
+        if (partId && qty > 0) {
+          updateSparePartStock(partId, qty);
+        }
+      });
+
       setTimeout(() => {
-        navigate(`/spare-parts/requests/${requestId}`);
+        navigate(`/spare-parts/requests/${newRequest.id}`);
       }, 500);
     } catch (error) {
       console.error('Create request error:', error);
@@ -293,25 +303,26 @@ export const SparePartRequestCreate: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {formData.items.map((item, index) => {
-                  const part = spareParts.find((p) => p.id === item.partId);
+                  const partId = item.partId ?? item.sparePartId;
+                  const part = spareParts.find((p) => p.id === partId);
                   return (
                     <div
-                      key={item.partId}
+                      key={partId ?? index}
                       className="animate-fade-in bg-neutral-50 rounded-xl p-3"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-neutral-700 text-sm">
-                            {item.partName}
+                            {item.partName ?? item.name}
                           </p>
                           <p className="text-xs text-neutral-500">
-                            {item.partCode} · {item.specification}
+                            {item.partCode ?? ''} · {item.specification ?? ''}
                           </p>
                           <p className="text-xs text-primary-500 mt-0.5">
-                            ¥{item.unitPrice.toFixed(2)}/{item.unit}
+                            ¥{(Number(item.unitPrice ?? 0) || 0).toFixed(2)}/{item.unit}
                             {part && (
                               <span className="text-neutral-400 ml-2">
-                                (库存: {part.stock} {item.unit})
+                                (库存: {Number(part.stock ?? part.stockQuantity ?? 0) || 0} {item.unit})
                               </span>
                             )}
                           </p>
@@ -328,7 +339,7 @@ export const SparePartRequestCreate: React.FC = () => {
                         <div className="flex items-center">
                           <button
                             onClick={() =>
-                              handleUpdateQuantity(index, item.quantity - 1)
+                              handleUpdateQuantity(index, (Number(item.quantity ?? 0) || 0) - 1)
                             }
                             className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-neutral-600 border border-neutral-200"
                           >
@@ -336,7 +347,7 @@ export const SparePartRequestCreate: React.FC = () => {
                           </button>
                           <input
                             type="number"
-                            value={item.quantity}
+                            value={Number(item.quantity ?? 0) || 0}
                             onChange={(e) =>
                               handleUpdateQuantity(
                                 index,
@@ -347,7 +358,7 @@ export const SparePartRequestCreate: React.FC = () => {
                           />
                           <button
                             onClick={() =>
-                              handleUpdateQuantity(index, item.quantity + 1)
+                              handleUpdateQuantity(index, (Number(item.quantity ?? 0) || 0) + 1)
                             }
                             className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600"
                           >
@@ -355,7 +366,7 @@ export const SparePartRequestCreate: React.FC = () => {
                           </button>
                         </div>
                         <p className="font-bold text-primary-600">
-                          ¥{(item.unitPrice * item.quantity).toFixed(2)}
+                          ¥{((Number(item.unitPrice ?? 0) || 0) * (Number(item.quantity ?? 0) || 0)).toFixed(2)}
                         </p>
                       </div>
 
@@ -503,15 +514,15 @@ export const SparePartRequestCreate: React.FC = () => {
                           {part.name}
                         </p>
                         <p className="text-xs text-neutral-500">
-                          {part.partCode} · {part.specification}
+                          {part.partCode ?? part.partNo ?? ''} · {part.specification ?? part.specifications ?? ''}
                         </p>
                         <p className="text-xs text-primary-500 mt-0.5">
-                          库存：{part.stock} {part.unit}
+                          库存：{Number(part.stock ?? part.stockQuantity ?? 0) || 0} {part.unit}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-neutral-700">
-                          ¥{part.price.toFixed(2)}
+                          ¥{(Number(part.price ?? part.unitPrice ?? 0) || 0).toFixed(2)}
                         </p>
                         <p className="text-xs text-neutral-400">/{part.unit}</p>
                       </div>
