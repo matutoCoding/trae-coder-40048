@@ -279,17 +279,17 @@ export const MaintenanceOrderDetail: React.FC = () => {
 
       <div className="px-4 py-4 space-y-4">
         <div
-          className={classNames(
-            'rounded-2xl p-5 text-white shadow-lg',
-            order.status === 'completed'
-              ? 'bg-gradient-to-r from-success-500 to-success-600'
-              : order.status === 'in_progress'
-              ? 'bg-gradient-to-r from-primary-500 to-primary-600'
-              : order.status === 'pending'
-              ? 'bg-gradient-to-r from-warning-500 to-warning-600'
-              : 'bg-gradient-to-r from-neutral-500 to-neutral-600'
-          )}
-        >
+            className={classNames(
+              'rounded-2xl p-5 text-white shadow-lg',
+              order.status === 'completed' || order.status === 'accepted'
+                ? 'bg-gradient-to-r from-success-500 to-success-600'
+                : order.status === 'in_progress'
+                ? 'bg-gradient-to-r from-primary-500 to-primary-600'
+                : order.status === 'pending'
+                ? 'bg-gradient-to-r from-warning-500 to-warning-600'
+                : 'bg-gradient-to-r from-neutral-500 to-neutral-600'
+            )}
+          >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center">
               <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mr-4">
@@ -357,7 +357,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                   计划时间
                 </span>
                 <span className="text-sm font-medium text-neutral-700">
-                  {formatDate(new Date(order.scheduledDate), 'YYYY-MM-DD HH:mm')}
+                  {formatDate(order.scheduledDate, 'YYYY-MM-DD HH:mm')}
                 </span>
               </div>
               {order.actualStartDate && (
@@ -367,7 +367,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                     开始时间
                   </span>
                   <span className="text-sm font-medium text-neutral-700">
-                    {formatDate(new Date(order.actualStartDate), 'YYYY-MM-DD HH:mm')}
+                    {formatDate(order.actualStartDate, 'YYYY-MM-DD HH:mm')}
                   </span>
                 </div>
               )}
@@ -378,7 +378,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                     完成时间
                   </span>
                   <span className="text-sm font-medium text-neutral-700">
-                    {formatDate(new Date(order.actualEndDate), 'YYYY-MM-DD HH:mm')}
+                    {formatDate(order.actualEndDate, 'YYYY-MM-DD HH:mm')}
                   </span>
                 </div>
               )}
@@ -388,7 +388,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
                   创建时间
                 </span>
                 <span className="text-sm font-medium text-neutral-700">
-                  {formatDate(new Date(order.createdAt), 'YYYY-MM-DD HH:mm')}
+                  {formatDate(order.createdAt, 'YYYY-MM-DD HH:mm')}
                 </span>
               </div>
               {totalCost > 0 && (
@@ -737,7 +737,7 @@ export const MaintenanceOrderDetail: React.FC = () => {
           </div>
         )}
 
-        {order.status === 'completed' && (
+        {(order.status === 'completed' || order.status === 'accepted') && (
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-neutral-700 mb-4">保养结果</h3>

@@ -203,8 +203,9 @@ export const InspectionExecute: React.FC = () => {
         updateDeviceStatus(device.id, 'maintenance');
       }
 
-      navigate('/inspection-complete', {
+      navigate('/inspection/complete', {
         state: {
+          deviceId: device.id,
           deviceName: device.name,
           stats: completionStats,
           abnormalCount,

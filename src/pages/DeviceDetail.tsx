@@ -397,11 +397,15 @@ export const DeviceDetail: React.FC = () => {
               <div className="space-y-3">
                 {deviceData.deviceInspections.map((record) => {
                   const recordAny = record as any;
-                  const items = record.results || record.items || [];
+                  const detailItems = record.results || record.items || [];
                   const abnormalCount =
                     record.abnormalCount !== undefined
                       ? record.abnormalCount
-                      : items.filter((item: any) => item?.status === 'abnormal').length;
+                      : detailItems.filter((item: any) => item?.status === 'abnormal').length;
+                  const normalCount =
+                    record.normalCount !== undefined
+                      ? record.normalCount
+                      : detailItems.filter((item: any) => item?.status === 'normal' || item?.status === 'completed').length;
                   const inspectorName =
                     record.inspectorName || record.executorName || '点检员';
                   const inspectionType = record.inspectionType || '日常';
@@ -435,14 +439,13 @@ export const DeviceDetail: React.FC = () => {
                             : '--'}
                         </p>
                       </div>
-                      <div className="text-right">
-                        {abnormalCount > 0 ? (
-                          <span className="text-xs text-danger-600 font-medium">
-                            {abnormalCount} 项异常
-                          </span>
-                        ) : (
-                          <span className="text-xs text-success-600 font-medium">
-                            正常
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <span className="text-xs text-success-600 font-medium">
+                          {normalCount}正常
+                        </span>
+                        {abnormalCount > 0 && (
+                          <span className="text-xs text-danger-600 font-medium ml-1.5">
+                            {abnormalCount}异常
                           </span>
                         )}
                       </div>

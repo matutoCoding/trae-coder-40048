@@ -9,6 +9,7 @@ import {
   QrCode,
   ArrowRight,
   AlertCircle,
+  Factory,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/common/Card';
 import { Header } from '../components/layout/Header';
@@ -18,25 +19,41 @@ import { classNames } from '../utils';
 export const InspectionComplete: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { deviceName, stats, abnormalCount } = location.state as {
-    deviceName: string;
-    stats: {
+  const stateData = (location.state as {
+    deviceId?: string;
+    deviceName?: string;
+    stats?: {
       normal: number;
       abnormal: number;
       skipped: number;
       total: number;
     };
-    abnormalCount: number;
-  };
+    abnormalCount?: number;
+  }) || {};
+
+  const deviceName = stateData.deviceName || '设备';
+  const stats = stateData.stats || { normal: 0, abnormal: 0, skipped: 0, total: 0 };
+  const abnormalCount = stateData.abnormalCount ?? 0;
+  const deviceId = stateData.deviceId;
 
   const isSuccess = abnormalCount === 0;
 
   const quickActions = [
+    ...(deviceId
+      ? [
+          {
+            icon: <Factory size={20} />,
+            label: '返回设备详情',
+            color: 'bg-neutral-600',
+            onClick: () => navigate(`/devices/${deviceId}`),
+          },
+        ]
+      : []),
     {
       icon: <Home size={20} />,
       label: '返回首页',
       color: 'bg-primary-500',
-      onClick: () => navigate('/dashboard'),
+      onClick: () => navigate('/'),
     },
     {
       icon: <ClipboardList size={20} />,
@@ -48,7 +65,7 @@ export const InspectionComplete: React.FC = () => {
       icon: <QrCode size={20} />,
       label: '继续扫码',
       color: 'bg-warning-500',
-      onClick: () => navigate('/scan-qr'),
+      onClick: () => navigate('/scan'),
     },
   ];
 
@@ -116,7 +133,9 @@ export const InspectionComplete: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-neutral-600">完成率</span>
                 <span className="font-bold text-primary-600">
-                  {Math.round(((stats.normal + stats.abnormal + stats.skipped) / stats.total) * 100)}%
+                  {stats.total > 0
+                    ? Math.round(((stats.normal + stats.abnormal + stats.skipped) / stats.total) * 100)
+                    : 0}%
                 </span>
               </div>
             </div>
