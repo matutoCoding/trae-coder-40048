@@ -73,15 +73,50 @@ export const InspectionExecute: React.FC = () => {
     handleResultChange(currentItem.id, { status });
   };
 
+  const parseNormalRange = (rangeStr: string, value: number): boolean | null => {
+    if (!rangeStr) return null;
+
+    if (rangeStr.includes('-') && !rangeStr.startsWith('≤') && !rangeStr.startsWith('≥') && !rangeStr.startsWith('<') && !rangeStr.startsWith('>')) {
+      const parts = rangeStr.split('-');
+      if (parts.length === 2) {
+        const min = parseFloat(parts[0]);
+        const max = parseFloat(parts[1]);
+        if (!isNaN(min) && !isNaN(max)) {
+          return value >= min && value <= max;
+        }
+      }
+    }
+
+    if (rangeStr.startsWith('≤')) {
+      const threshold = parseFloat(rangeStr.slice(1));
+      if (!isNaN(threshold)) return value <= threshold;
+    }
+    if (rangeStr.startsWith('≥')) {
+      const threshold = parseFloat(rangeStr.slice(1));
+      if (!isNaN(threshold)) return value >= threshold;
+    }
+    if (rangeStr.startsWith('<')) {
+      const threshold = parseFloat(rangeStr.slice(1));
+      if (!isNaN(threshold)) return value < threshold;
+    }
+    if (rangeStr.startsWith('>')) {
+      const threshold = parseFloat(rangeStr.slice(1));
+      if (!isNaN(threshold)) return value > threshold;
+    }
+
+    return null;
+  };
+
   const handleValueChange = (value: string) => {
     if (!currentItem) return;
     handleResultChange(currentItem.id, { value });
     if (currentItem.dataType === 'number' && currentItem.normalRange) {
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
-        const [min, max] = currentItem.normalRange.split('-').map(Number);
-        const isNormal = numValue >= min && numValue <= max;
-        handleResultChange(currentItem.id, { status: isNormal ? 'normal' : 'abnormal' });
+        const isNormal = parseNormalRange(currentItem.normalRange, numValue);
+        if (isNormal !== null) {
+          handleResultChange(currentItem.id, { status: isNormal ? 'normal' : 'abnormal' });
+        }
       }
     }
   };
@@ -90,9 +125,10 @@ export const InspectionExecute: React.FC = () => {
     if (!currentItem) return;
     handleResultChange(currentItem.id, { value: String(value) });
     if (currentItem.dataType === 'percentage' && currentItem.normalRange) {
-      const [min, max] = currentItem.normalRange.split('-').map(Number);
-      const isNormal = value >= min && value <= max;
-      handleResultChange(currentItem.id, { status: isNormal ? 'normal' : 'abnormal' });
+      const isNormal = parseNormalRange(currentItem.normalRange, value);
+      if (isNormal !== null) {
+        handleResultChange(currentItem.id, { status: isNormal ? 'normal' : 'abnormal' });
+      }
     }
   };
 

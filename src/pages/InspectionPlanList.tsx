@@ -17,7 +17,7 @@ import { Card, CardContent } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
-import { ScrollTabs } from '../components/common/Tabs';
+import { ScrollTabs, SegmentedControl } from '../components/common/Tabs';
 import { Input } from '../components/common/Form';
 import { Empty, EmptySearch } from '../components/common/Empty';
 import { classNames, formatDate } from '../utils';
@@ -31,14 +31,33 @@ const statusTabs = [
   { key: 'cancelled', label: '已取消' },
 ];
 
+const cycleTabs = [
+  { key: 'all', label: '全部' },
+  { key: 'daily', label: '日检' },
+  { key: 'weekly', label: '周检' },
+  { key: 'monthly', label: '月检' },
+];
+
+const cycleLabelMap: Record<string, string> = {
+  daily: '日检',
+  weekly: '周检',
+  monthly: '月检',
+  quarterly: '季检',
+};
+
 export const InspectionPlanList: React.FC = () => {
   const navigate = useNavigate();
   const { inspectionPlans, devices, inspectionRecords } = useAppStore();
   const [activeTab, setActiveTab] = useState('all');
+  const [activeCycle, setActiveCycle] = useState('all');
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const filteredPlans = useMemo(() => {
     let result = [...inspectionPlans];
+
+    if (activeCycle !== 'all') {
+      result = result.filter((p) => p.cycle === activeCycle);
+    }
 
     if (activeTab !== 'all') {
       result = result.filter((p) => p.status === activeTab);
@@ -48,12 +67,17 @@ export const InspectionPlanList: React.FC = () => {
       const keyword = searchKeyword.toLowerCase();
       result = result.filter((p) => {
         const device = devices.find((d) => d.id === p.deviceId);
+        const name = (p.name || '').toLowerCase();
+        const inspectionType = (p.inspectionType || cycleLabelMap[p.cycle] || '').toLowerCase();
+        const assigneeName = (p.assigneeName || p.executorName || '').toLowerCase();
+        const deviceName = (device?.name || '').toLowerCase();
+        const deviceNo = (device?.deviceNo || '').toLowerCase();
         return (
-          p.name.toLowerCase().includes(keyword) ||
-          p.inspectionType.toLowerCase().includes(keyword) ||
-          p.assigneeName.toLowerCase().includes(keyword) ||
-          device?.name.toLowerCase().includes(keyword) ||
-          device?.deviceNo.toLowerCase().includes(keyword)
+          name.includes(keyword) ||
+          inspectionType.includes(keyword) ||
+          assigneeName.includes(keyword) ||
+          deviceName.includes(keyword) ||
+          deviceNo.includes(keyword)
         );
       });
     }
@@ -61,9 +85,9 @@ export const InspectionPlanList: React.FC = () => {
     return result.sort((a, b) => {
       if (a.status === 'pending' && b.status !== 'pending') return -1;
       if (a.status !== 'pending' && b.status === 'pending') return 1;
-      return new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime();
+      return new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime();
     });
-  }, [inspectionPlans, devices, activeTab, searchKeyword]);
+  }, [inspectionPlans, devices, activeTab, activeCycle, searchKeyword]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: inspectionPlans.length };
@@ -83,9 +107,22 @@ export const InspectionPlanList: React.FC = () => {
   }, [inspectionPlans]);
 
   const getCompletionStats = (planId: string) => {
-    const records = inspectionRecords.filter((r) => r.inspectionPlanId === planId);
-    const completed = records.filter((r) => r.status === 'completed').length;
-    const abnormal = records.filter((r) => r.status === 'completed').flatMap((r) => r.results).filter((r) => r.status === 'abnormal').length;
+    const records = inspectionRecords.filter(
+      (r) => r.inspectionPlanId === planId || r.planId === planId
+    );
+    const completed = records.filter(
+      (r) => r.status === 'completed' || r.status === 'normal' || r.status === 'completed_with_issues'
+    ).length;
+    const abnormal = records
+      .filter(
+        (r) =>
+          r.status === 'completed' ||
+          r.status === 'normal' ||
+          r.status === 'completed_with_issues' ||
+          r.status === 'abnormal'
+      )
+      .flatMap((r) => r.results || r.items || [])
+      .filter((r) => r && r.status === 'abnormal').length;
     return { completed, abnormal, total: records.length };
   };
 
@@ -103,7 +140,7 @@ export const InspectionPlanList: React.FC = () => {
                 <p className="text-white/70 text-xs mt-1">项点检任务待执行</p>
               </div>
               <button
-                onClick={() => navigate('/scan-qr')}
+                onClick={() => navigate('/scan')}
                 className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium flex items-center active:scale-95 transition-transform"
               >
                 <Play size={16} className="mr-1.5" />
@@ -123,6 +160,16 @@ export const InspectionPlanList: React.FC = () => {
           <Search
             size={18}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-neutral-600 font-medium">周期筛选</span>
+          <SegmentedControl
+            options={cycleTabs}
+            value={activeCycle}
+            onChange={setActiveCycle}
+            className="w-64"
           />
         </div>
 
@@ -169,7 +216,7 @@ export const InspectionPlanList: React.FC = () => {
                           {plan.name}
                         </h3>
                         <p className="text-xs text-neutral-500 mt-0.5">
-                          {device?.name || '未知设备'} · {plan.inspectionType}点检
+                          {device?.name || '未知设备'} · {plan.inspectionType || cycleLabelMap[plan.cycle] || '日常'}点检
                         </p>
                       </div>
                       <div className="flex items-center ml-2">
@@ -190,7 +237,7 @@ export const InspectionPlanList: React.FC = () => {
                       </div>
                       <div className="flex items-center text-xs text-neutral-500">
                         <User size={12} className="mr-1.5 text-neutral-400" />
-                        {plan.assigneeName}
+                        {plan.assigneeName || plan.executorName || '未分配'}
                       </div>
                     </div>
 

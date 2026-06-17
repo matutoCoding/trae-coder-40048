@@ -418,10 +418,11 @@ export const DeviceDetail: React.FC = () => {
                   return (
                     <div
                       key={record.id || Math.random()}
-                      className="flex items-center p-3 bg-neutral-50 rounded-xl"
+                      onClick={() => navigate(`/inspection-records/${record.id}`)}
+                      className="flex items-center p-3 bg-neutral-50 rounded-xl cursor-pointer active:scale-[0.99] transition-transform"
                     >
                       <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 ${
                           abnormalCount > 0
                             ? 'bg-danger-100 text-danger-600'
                             : 'bg-success-100 text-success-600'
@@ -430,7 +431,7 @@ export const DeviceDetail: React.FC = () => {
                         <ClipboardList size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-neutral-700 text-sm">
+                        <p className="font-medium text-neutral-700 text-sm truncate">
                           {inspectorName} · {inspectionType}点检
                         </p>
                         <p className="text-xs text-neutral-500 mt-0.5">
@@ -439,15 +440,18 @@ export const DeviceDetail: React.FC = () => {
                             : '--'}
                         </p>
                       </div>
-                      <div className="text-right flex-shrink-0 ml-2">
-                        <span className="text-xs text-success-600 font-medium">
-                          {normalCount}正常
-                        </span>
-                        {abnormalCount > 0 && (
-                          <span className="text-xs text-danger-600 font-medium ml-1.5">
-                            {abnormalCount}异常
+                      <div className="text-right flex-shrink-0 ml-2 flex items-center">
+                        <div>
+                          <span className="text-xs text-success-600 font-medium">
+                            {normalCount}正常
                           </span>
-                        )}
+                          {abnormalCount > 0 && (
+                            <span className="text-xs text-danger-600 font-medium ml-1.5">
+                              {abnormalCount}异常
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={16} className="text-neutral-300 ml-2" />
                       </div>
                     </div>
                   );

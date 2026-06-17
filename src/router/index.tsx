@@ -14,6 +14,7 @@ import { Dashboard } from '../pages/Dashboard';
 import { DeviceList } from '../pages/DeviceList';
 import { DeviceDetail } from '../pages/DeviceDetail';
 import { InspectionPlanList } from '../pages/InspectionPlanList';
+import { InspectionRecordDetail } from '../pages/InspectionRecordDetail';
 import { ScanQR } from '../pages/ScanQR';
 import { InspectionExecute } from '../pages/InspectionExecute';
 import { InspectionComplete } from '../pages/InspectionComplete';
@@ -92,6 +93,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <InspectionPlanList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspection-records/:id"
+          element={
+            <ProtectedRoute>
+              <InspectionRecordDetail />
             </ProtectedRoute>
           }
         />

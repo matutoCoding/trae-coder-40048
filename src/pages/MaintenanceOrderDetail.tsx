@@ -24,7 +24,7 @@ import { Card, CardContent } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/common/Button';
-import { Input, ImageUpload, Slider } from '../components/common/Form';
+import { Input, ImageUpload, Slider, RadioGroup } from '../components/common/Form';
 import { Empty, LoadingOverlay } from '../components/common/Empty';
 import { classNames, formatDate, safeNumber, formatPrice } from '../utils';
 import type { MaintenanceItemResult, SparePartUsage, MaintenanceTask } from '../types';
@@ -49,6 +49,8 @@ export const MaintenanceOrderDetail: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSparePartSelect, setShowSparePartSelect] = useState(false);
+  const [acceptanceResult, setAcceptanceResult] = useState<string>('passed');
+  const [acceptanceRemark, setAcceptanceRemark] = useState('');
 
   const order = useMemo(
     () => maintenanceOrders.find((o) => o.id === id),
@@ -238,6 +240,31 @@ export const MaintenanceOrderDetail: React.FC = () => {
     }
   };
 
+  const handleAcceptanceSubmit = async () => {
+    if (!order || !user || !device) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await updateMaintenanceOrder(order.id, {
+        status: 'accepted',
+        acceptedBy: user.id,
+        acceptedByName: user.realName || user.name,
+        acceptedAt: new Date().toISOString(),
+        acceptanceResult,
+        acceptanceRemark,
+      });
+
+      if (acceptanceResult === 'failed') {
+        await updateDeviceStatus(device.id, 'maintenance');
+      }
+    } catch (error) {
+      console.error('Acceptance submit error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!order) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
@@ -381,6 +408,46 @@ export const MaintenanceOrderDetail: React.FC = () => {
                     {formatDate(order.actualEndDate, 'YYYY-MM-DD HH:mm')}
                   </span>
                 </div>
+              )}
+              {order.status === 'accepted' && order.acceptedAt && (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                    <span className="text-sm text-neutral-500 flex items-center">
+                      <User size={14} className="mr-2" />
+                      验收人
+                    </span>
+                    <span className="text-sm font-medium text-neutral-700">
+                      {order.acceptedByName || '--'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                    <span className="text-sm text-neutral-500 flex items-center">
+                      <CheckCircle2 size={14} className="mr-2" />
+                      验收时间
+                    </span>
+                    <span className="text-sm font-medium text-neutral-700">
+                      {formatDate(order.acceptedAt, 'YYYY-MM-DD HH:mm')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                    <span className="text-sm text-neutral-500 flex items-center">
+                      <CheckCircle2 size={14} className="mr-2" />
+                      验收结论
+                    </span>
+                    <span className={classNames(
+                      'text-sm font-medium',
+                      order.acceptanceResult === 'passed' ? 'text-success-600' : 'text-danger-600'
+                    )}>
+                      {order.acceptanceResult === 'passed' ? '通过' : '不通过'}
+                    </span>
+                  </div>
+                  {order.acceptanceRemark && (
+                    <div className="py-2 border-b border-neutral-100">
+                      <span className="text-sm text-neutral-500 block mb-1">验收备注</span>
+                      <p className="text-sm text-neutral-700">{order.acceptanceRemark}</p>
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex justify-between items-center py-2 border-b border-neutral-100">
                 <span className="text-sm text-neutral-500 flex items-center">
@@ -940,6 +1007,52 @@ export const MaintenanceOrderDetail: React.FC = () => {
                   <p className="text-sm text-neutral-600">{order.remark}</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {order.status === 'completed' && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-bold text-neutral-700 mb-4 flex items-center">
+                <CheckCircle2 size={18} className="mr-2 text-primary-500" />
+                验收确认
+              </h3>
+              <div className="space-y-4">
+                <RadioGroup
+                  label="验收结论"
+                  value={acceptanceResult}
+                  onChange={setAcceptanceResult}
+                  options={[
+                    { value: 'passed', label: '通过' },
+                    { value: 'failed', label: '不通过' },
+                  ]}
+                />
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    验收人
+                  </label>
+                  <div className="px-3 py-2.5 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-600">
+                    {user?.realName || user?.name || '--'}
+                  </div>
+                </div>
+                <Input
+                  label="验收备注"
+                  type="textarea"
+                  value={acceptanceRemark}
+                  onChange={setAcceptanceRemark}
+                  placeholder="请输入验收备注（选填）"
+                  rows={3}
+                />
+                <Button
+                  size="full"
+                  variant="primary"
+                  onClick={handleAcceptanceSubmit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? '提交中...' : '提交验收'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

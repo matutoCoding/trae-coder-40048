@@ -110,7 +110,7 @@ export const Dashboard: React.FC = () => {
       icon: <QrCode size={24} />,
       label: '扫码点检',
       color: 'bg-primary-500',
-      path: '/scan-qr',
+      path: '/scan',
     },
     {
       icon: <ClipboardList size={24} />,

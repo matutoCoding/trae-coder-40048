@@ -196,6 +196,11 @@ export interface MaintenanceOrder {
   scheduledDate: string;
   actualStartDate?: string;
   actualEndDate?: string;
+  acceptedBy?: string;
+  acceptedByName?: string;
+  acceptedAt?: string;
+  acceptanceResult?: 'passed' | 'failed' | string;
+  acceptanceRemark?: string;
   createdBy: string;
   createdByName: string;
   createdAt: string;
